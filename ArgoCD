@@ -1,0 +1,103 @@
+https://blog.baeke.info/2019/12/25/giving-argo-cd-a-spin/
+
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+--
+kubectl get pods -n argocd
+NAME                                             READY   STATUS     RESTARTS   AGE
+argocd-application-controller-5bc5cf665f-qrsq4   1/1     Running    0          9m10s
+argocd-dex-server-b59646b69-25htq                0/1     Init:0/1   0          9m8s
+argocd-redis-868b8cb57f-ctl6m                    1/1     Running    0          9m6s
+argocd-repo-server-c4d76fdf5-p9t67               1/1     Running    0          9m4s
+argocd-server-55594fbdb9-zcdj4                   1/1     Running    0          9m2s
+--
+kubectl get svc -n argocd
+NAME                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)             AGE
+argocd-dex-server       ClusterIP   10.100.173.18    <none>        5556/TCP,5557/TCP   7m45s
+argocd-metrics          ClusterIP   10.100.144.139   <none>        8082/TCP            7m43s
+argocd-redis            ClusterIP   10.100.21.240    <none>        6379/TCP            7m41s
+argocd-repo-server      ClusterIP   10.100.103.165   <none>        8081/TCP,8084/TCP   7m39s
+argocd-server           ClusterIP   10.100.184.129   <none>        80/TCP,443/TCP      7m35s
+argocd-server-metrics   ClusterIP   10.100.142.113   <none>        8083/TCP            7m37s
+--
+
+Install ArgoCD CLI Ubuntu
+
+Make ArgoCD GUI accessible if required. For now we can have port-forward. In actual scenario ingress controller need to be configured.
+--
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+Forwarding from 127.0.0.1:8080 -> 8080
+Forwarding from [::1]:8080 -> 8080
+Handling connection for 8080
+--
+
+Open GUI
+https://localhost:8080/
+Username: admin
+Password: <Name of the argocd-server pod>
+We need to change above password.
+
+Login using CLI and change password.
+
+--
+#argocd login localhost:8080
+
+error: x509: certificate signed by unknown authority. Proceed insecurely (y/n)? y
+Username: admin
+Password: 
+'admin' logged in successfully
+Context 'localhost:8080' updated
+--
+argocd account update-password
+*** Enter current password: 
+*** Enter new password: 
+*** Confirm new password: 
+Password updated
+Context 'localhost:8080' updated
+--
+
+Now goback and login to the GUI using admin/<new password set>
+
+Create App
+
+argocd app create realtime \   
+--repo https://github.com/gbaeke/argo-demo.git \
+--path manifests \
+--dest-server https://kubernetes.default.svc \
+--dest-namespace default
+
+
+Sync App - Sothat it will show up in the GUI
+
+argocd app sync realtime
+
+-------
+
+argocd app create spog-frontend-app --repo git@bitbucket.org:vzmdev/olte-infrastructure-live.git --path dev-269129365401/us-east-1/dev/services/argo-spog-frontend --dest-server https://kubernetes.default.svc --dest-namespace applications
+
+-----
+
+login argocd admin/password
+
+Add repo cert in bitbucket
+
+argocd repo add git@bitbucket.org:vzmdev/olte-infrastructure-live.git --ssh-private-key-path ~/.ssh/bitbucket/id_rsa
+
+argocd app create guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --dest-server https://kubernetes.default.svc --dest-namespace applications
+
+
+
+kubectl exec -it argocd-server-55594fbdb9-zcdj4 --container argocd-server -n argocd -- /bin/bash
+
+Debug- delete later
+---
+Argocd server node: 172.21.99.234
+
+nameserver 172.21.0.2
+nameserver 10.100.0.10
+search argocd.svc.cluster.local svc.cluster.local cluster.local ec2.internal
+
+
+
+---
